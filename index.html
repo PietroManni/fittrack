@@ -1061,16 +1061,19 @@ function recalcMealFromBase() {
 }
 
 async function startBarcodeScanner() {
-  const box = document.getElementById('barcode-reader');
-  if (!box) return;
-  box.style.display = 'block';
-
   if (!window.Html5Qrcode) {
     alert('Scanner non ancora caricato. Riprova tra un secondo.');
     return;
   }
 
-  stopBarcodeScanner();
+  await stopBarcodeScanner();
+
+  const box = document.getElementById('barcode-reader');
+  if (!box) return;
+
+  box.style.display = 'block';
+  box.style.minHeight = '260px';
+
   barcodeScanner = new Html5Qrcode('barcode-reader');
 
   try {
