@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="FitTrack">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.33.0/dist/tabler-icons.min.css">
-  <script src="https://unpkg.com/html5-qrcode" defer></script>
+  <script src="https://unpkg.com/@zxing/library@latest" defer></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -339,6 +339,7 @@ let editPlan = {name:'',desc:'',exercises:[]};
 let newEx   = {name:'',sets:'3',reps:'10',weight:''};
 let newMeal = {name:'',grams:'100',calories:'',protein:'',carbs:'',fat:'',base:null};
 let barcodeScanner = null;
+let barcodeControls = null;
 let logSess = null;
 let nutDate = todayStr();
 
@@ -1087,7 +1088,7 @@ async function startBarcodeScanner() {
     return;
   }
 
-  if (!window.Html5Qrcode) {
+  if (!window.ZXing) {
     if (status) status.textContent = 'Scanner non ancora caricato. Riprova tra un secondo.';
     return;
   }
@@ -1097,62 +1098,68 @@ async function startBarcodeScanner() {
   if (!box) return;
   box.style.display = 'block';
   box.style.minHeight = '280px';
+  box.innerHTML = `
+    <video id="barcode-video" style="width:100%;height:280px;object-fit:cover;border-radius:12px;background:#000" playsinline muted></video>
+  `;
 
-  barcodeScanner = new Html5Qrcode('barcode-reader');
-
-  const onSuccess = async decodedText => {
-    if (status) status.textContent = `Barcode trovato: ${decodedText}`;
-    await stopBarcodeScanner();
-    await fetchFoodByBarcode(decodedText);
-  };
+  const video = document.getElementById('barcode-video');
 
   try {
-    if (status) status.textContent = 'Fotocamera attiva: inquadra il codice a barre.';
-    await barcodeScanner.start(
-      { facingMode: { exact: 'environment' } },
-      { fps: 10, qrbox: { width: 280, height: 160 } },
-      onSuccess
-    );
-  } catch(e1) {
-    try {
-      if (status) status.textContent = 'Provo ad aprire una fotocamera disponibile...';
-      await barcodeScanner.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 280, height: 160 } },
-        onSuccess
-      );
-      if (status) status.textContent = 'Fotocamera attiva: inquadra il codice a barre.';
-    } catch(e2) {
-      try {
-        const cameras = await Html5Qrcode.getCameras();
-        if (!cameras || cameras.length === 0) throw new Error('Nessuna fotocamera trovata');
-        const cameraId = cameras[cameras.length - 1].id;
-        await barcodeScanner.start(
-          cameraId,
-          { fps: 10, qrbox: { width: 280, height: 160 } },
-          onSuccess
-        );
-        if (status) status.textContent = 'Fotocamera attiva: inquadra il codice a barre.';
-      } catch(e3) {
-        if (status) {
-          status.textContent = 'Non riesco ad aprire la fotocamera. Controlla permessi, usa HTTPS/GitHub Pages e prova Safari su iPhone o Chrome su Android. Intanto puoi inserire il barcode manualmente qui sotto.';
-        }
-        await stopBarcodeScanner();
-      }
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.CODE_128
+    ]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+
+    barcodeScanner = new ZXing.BrowserMultiFormatReader(hints, 500);
+    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+
+    if (!devices || devices.length === 0) {
+      throw new Error('Nessuna fotocamera trovata');
     }
+
+    const backCamera = devices.find(d => /back|rear|environment|posteriore/i.test(d.label));
+    const deviceId = (backCamera || devices[devices.length - 1]).deviceId;
+
+    if (status) status.textContent = 'Fotocamera attiva: inquadra bene il codice a barre.';
+
+    barcodeControls = await barcodeScanner.decodeFromVideoDevice(deviceId, video, async (result, err) => {
+      if (result) {
+        const code = result.getText();
+        if (status) status.textContent = `Barcode trovato: ${code}`;
+        await stopBarcodeScanner();
+        await fetchFoodByBarcode(code);
+      }
+    });
+  } catch(e) {
+    if (status) {
+      status.textContent = 'Non riesco ad avviare lo scanner. Controlla i permessi fotocamera oppure inserisci il barcode manualmente.';
+    }
+    await stopBarcodeScanner();
   }
 }
 
 async function stopBarcodeScanner() {
   try {
-    if (barcodeScanner) {
-      await barcodeScanner.stop();
-      await barcodeScanner.clear();
-    }
+    if (barcodeControls) barcodeControls.stop();
   } catch(e) {}
+
+  try {
+    if (barcodeScanner) barcodeScanner.reset();
+  } catch(e) {}
+
+  barcodeControls = null;
   barcodeScanner = null;
+
   const box = document.getElementById('barcode-reader');
-  if (box) box.style.display = 'none';
+  if (box) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+  }
 }
 
 async function fetchFoodByBarcode(barcode) {
