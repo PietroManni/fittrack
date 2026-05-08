@@ -11,6 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="FitTrack">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.33.0/dist/tabler-icons.min.css">
+  <script src="https://unpkg.com/html5-qrcode" defer></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -336,7 +337,8 @@ let editPlanId = null, viewPlanId = null, viewSessionId = null;
 let restTimer = null, restLeft = 0;
 let editPlan = {name:'',desc:'',exercises:[]};
 let newEx   = {name:'',sets:'3',reps:'10',weight:''};
-let newMeal = {name:'',calories:'',protein:'',carbs:'',fat:''};
+let newMeal = {name:'',grams:'100',calories:'',protein:'',carbs:'',fat:'',base:null};
+let barcodeScanner = null;
 let logSess = null;
 let nutDate = todayStr();
 
@@ -415,7 +417,7 @@ function goBack() {
   view = 'main'; editPlanId = null; viewSessionId = null; logSess = null;
   editPlan = {name:'',desc:'',exercises:[]};
   newEx    = {name:'',sets:'3',reps:'10',weight:''};
-  newMeal  = {name:'',calories:'',protein:'',carbs:'',fat:''};
+  newMeal  = {name:'',grams:'100',calories:'',protein:'',carbs:'',fat:'',base:null};
   render();
   document.getElementById('content').scrollTop = 0;
 }
@@ -596,6 +598,7 @@ function vLogWorkout() {
           <div>
             <div style="font-size:15px;font-weight:700">${escapeHtml(ex.name)}</div>
             <div style="font-size:12px;color:var(--text2);margin-top:2px">Target: ${ex.sets} × ${ex.reps}${ex.weight?` @ ${ex.weight}kg`:''}</div>
+            <div style="font-size:12px;color:var(--accent);margin-top:3px"><i class="ti ti-sparkles"></i> ${suggestProgression(ex).text}</div>
           </div>
           <button class="btn sm" onclick="addSetToExercise(${i})"><i class="ti ti-plus"></i> Serie</button>
         </div>
@@ -667,6 +670,48 @@ function getExerciseHistory(name) {
   });
 
   return history.sort((a,b) => b.date.localeCompare(a.date));
+}
+
+function getLastExerciseHistory(name) {
+  return getExerciseHistory(name).find(h => h.sets?.some(s => Number(s.weight) > 0 && Number(s.reps) > 0));
+}
+
+function suggestProgression(ex) {
+  const last = getLastExerciseHistory(ex.name);
+  if (!last) {
+    return {
+      text: 'Prima sessione: usa il target della scheda',
+      weight: ex.weight || '',
+      reps: ex.reps || ''
+    };
+  }
+
+  const targetReps = Number(ex.reps) || 0;
+  const validSets = last.sets.filter(s => Number(s.weight) > 0 && Number(s.reps) > 0);
+  const lastWeight = Math.max(...validSets.map(s => Number(s.weight) || 0), 0);
+  const completedTarget = validSets.length > 0 && validSets.every(s => !targetReps || Number(s.reps) >= targetReps);
+
+  if (completedTarget && lastWeight > 0) {
+    return {
+      text: `Ultima volta completata: prova ${lastWeight + 2.5}kg`,
+      weight: lastWeight + 2.5,
+      reps: ex.reps || ''
+    };
+  }
+
+  if (lastWeight > 0) {
+    return {
+      text: `Ultima volta non completata: resta su ${lastWeight}kg`,
+      weight: lastWeight,
+      reps: ex.reps || ''
+    };
+  }
+
+  return {
+    text: 'Usa il target della scheda',
+    weight: ex.weight || '',
+    reps: ex.reps || ''
+  };
 }
 
 function getExerciseStats(history) {
@@ -799,7 +844,7 @@ function vFood() {
           <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
             <div style="flex:1;min-width:0">
               <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(m.name)}</div>
-              <div style="font-size:12px;color:var(--text2);margin-top:2px">${num(m.calories)} kcal · P: ${num(m.protein)}g · C: ${num(m.carbs)}g · G: ${num(m.fat)}g</div>
+              <div style="font-size:12px;color:var(--text2);margin-top:2px">${num(m.calories)} kcal${m.grams?` · ${m.grams}g`:''} · P: ${num(m.protein)}g · C: ${num(m.carbs)}g · G: ${num(m.fat)}g</div>
             </div>
             ${isToday?`<button class="ib dng" onclick="delMeal('${m.id}')"><i class="ti ti-trash"></i></button>`:''}
           </div>`).join('')}
@@ -814,21 +859,26 @@ function vFood() {
 
 function vAddMeal() {
   return `
-    <button class="back" onclick="goBack()"><i class="ti ti-arrow-left"></i> Nutrizione</button>
+    <button class="back" onclick="stopBarcodeScanner();goBack()"><i class="ti ti-arrow-left"></i> Nutrizione</button>
     <div class="pg-title">Aggiungi alimento</div>
     <div class="card">
+      <div class="rwg" style="margin-bottom:12px">
+        <button class="btn prim full" onclick="startBarcodeScanner()"><i class="ti ti-barcode"></i> Scansiona barcode</button>
+      </div>
+      <div id="barcode-reader" style="display:none;margin-bottom:12px;border-radius:12px;overflow:hidden;background:var(--bg3)"></div>
       <div class="field"><label>Nome *</label><input id="mname" placeholder="es. Petto di pollo 150g, Pasta 80g..." value="${escapeHtml(newMeal.name)}" oninput="newMeal.name=this.value"></div>
+      <div class="field"><label>Quantità consumata (g)</label><input type="number" min="1" placeholder="100" value="${newMeal.grams || '100'}" oninput="newMeal.grams=this.value;recalcMealFromBase();"></div>
       <div class="g2">
-        <div class="field"><label>Calorie (kcal) *</label><input type="number" min="0" placeholder="0" value="${newMeal.calories}" oninput="newMeal.calories=this.value"></div>
-        <div class="field"><label>Proteine (g)</label><input type="number" min="0" placeholder="0" value="${newMeal.protein}" oninput="newMeal.protein=this.value"></div>
-        <div class="field"><label>Carboidrati (g)</label><input type="number" min="0" placeholder="0" value="${newMeal.carbs}" oninput="newMeal.carbs=this.value"></div>
-        <div class="field"><label>Grassi (g)</label><input type="number" min="0" placeholder="0" value="${newMeal.fat}" oninput="newMeal.fat=this.value"></div>
+        <div class="field"><label>Calorie (kcal)</label><input id="meal-cal" type="number" min="0" placeholder="0" value="${newMeal.calories}" oninput="newMeal.calories=this.value;newMeal.base=null"></div>
+        <div class="field"><label>Proteine (g)</label><input id="meal-pro" type="number" min="0" placeholder="0" value="${newMeal.protein}" oninput="newMeal.protein=this.value;newMeal.base=null"></div>
+        <div class="field"><label>Carboidrati (g)</label><input id="meal-carb" type="number" min="0" placeholder="0" value="${newMeal.carbs}" oninput="newMeal.carbs=this.value;newMeal.base=null"></div>
+        <div class="field"><label>Grassi (g)</label><input id="meal-fat" type="number" min="0" placeholder="0" value="${newMeal.fat}" oninput="newMeal.fat=this.value;newMeal.base=null"></div>
       </div>
     </div>
-    <div class="note"><i class="ti ti-info-circle" style="flex-shrink:0;font-size:17px"></i> Valori sull'etichetta del prodotto o su MyFitnessPal, Cronometer, FoodData Central</div>
+    <div class="note"><i class="ti ti-info-circle" style="flex-shrink:0;font-size:17px"></i> Con barcode i valori vengono presi per 100g e ricalcolati sulla quantità inserita.</div>
     <div class="rwg" style="margin-top:14px">
       <button class="btn prim" style="flex:1;justify-content:center" onclick="saveMeal()"><i class="ti ti-check"></i> Salva</button>
-      <button class="btn" onclick="goBack()">Annulla</button>
+      <button class="btn" onclick="stopBarcodeScanner();goBack()">Annulla</button>
     </div>`;
 }
 
@@ -993,10 +1043,93 @@ function delSess(id) {
   data.sessions=data.sessions.filter(s=>s.id!==id);
   saveData(); goBack();
 }
-function goAddMeal() { newMeal={name:'',calories:'',protein:'',carbs:'',fat:''}; view='add-meal'; render(); }
+function goAddMeal() { newMeal={name:'',grams:'100',calories:'',protein:'',carbs:'',fat:'',base:null}; view='add-meal'; render(); }
+
+function recalcMealFromBase() {
+  if (!newMeal.base) return;
+  const factor = (Number(newMeal.grams) || 100) / 100;
+  newMeal.calories = Math.round((newMeal.base.calories || 0) * factor);
+  newMeal.protein  = Math.round((newMeal.base.protein  || 0) * factor * 10) / 10;
+  newMeal.carbs    = Math.round((newMeal.base.carbs    || 0) * factor * 10) / 10;
+  newMeal.fat      = Math.round((newMeal.base.fat      || 0) * factor * 10) / 10;
+
+  const ids = [['meal-cal','calories'],['meal-pro','protein'],['meal-carb','carbs'],['meal-fat','fat']];
+  ids.forEach(([id,k]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = newMeal[k];
+  });
+}
+
+async function startBarcodeScanner() {
+  const box = document.getElementById('barcode-reader');
+  if (!box) return;
+  box.style.display = 'block';
+
+  if (!window.Html5Qrcode) {
+    alert('Scanner non ancora caricato. Riprova tra un secondo.');
+    return;
+  }
+
+  stopBarcodeScanner();
+  barcodeScanner = new Html5Qrcode('barcode-reader');
+
+  try {
+    await barcodeScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 240, height: 140 } },
+      async decodedText => {
+        await stopBarcodeScanner();
+        await fetchFoodByBarcode(decodedText);
+      }
+    );
+  } catch(e) {
+    alert('Non riesco ad aprire la fotocamera. Controlla i permessi del browser.');
+  }
+}
+
+async function stopBarcodeScanner() {
+  try {
+    if (barcodeScanner) {
+      await barcodeScanner.stop();
+      await barcodeScanner.clear();
+    }
+  } catch(e) {}
+  barcodeScanner = null;
+  const box = document.getElementById('barcode-reader');
+  if (box) box.style.display = 'none';
+}
+
+async function fetchFoodByBarcode(barcode) {
+  try {
+    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
+    const json = await res.json();
+
+    if (!json.product) {
+      alert('Prodotto non trovato. Puoi inserirlo manualmente.');
+      return;
+    }
+
+    const p = json.product;
+    const n = p.nutriments || {};
+
+    newMeal.name = p.product_name || p.product_name_it || `Prodotto ${barcode}`;
+    newMeal.grams = newMeal.grams || '100';
+    newMeal.base = {
+      calories: Number(n['energy-kcal_100g']) || Number(n['energy-kcal']) || 0,
+      protein:  Number(n['proteins_100g']) || 0,
+      carbs:    Number(n['carbohydrates_100g']) || 0,
+      fat:      Number(n['fat_100g']) || 0
+    };
+    recalcMealFromBase();
+    render();
+  } catch(e) {
+    alert('Errore durante la ricerca del prodotto.');
+  }
+}
+
 function saveMeal() {
   if (!newMeal.name.trim()||!newMeal.calories) return;
-  data.meals.push({id:uid(),date:todayStr(),name:newMeal.name.trim(),calories:Number(newMeal.calories)||0,protein:Number(newMeal.protein)||0,carbs:Number(newMeal.carbs)||0,fat:Number(newMeal.fat)||0});
+  data.meals.push({id:uid(),date:todayStr(),name:newMeal.name.trim(),grams:Number(newMeal.grams)||0,calories:Number(newMeal.calories)||0,protein:Number(newMeal.protein)||0,carbs:Number(newMeal.carbs)||0,fat:Number(newMeal.fat)||0});
   saveData(); goBack();
 }
 function delMeal(id) { data.meals=data.meals.filter(m=>m.id!==id); saveData(); render(); }
