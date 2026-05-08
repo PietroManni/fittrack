@@ -1116,7 +1116,7 @@ async function startBarcodeScanner() {
     hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
 
     barcodeScanner = new ZXing.BrowserMultiFormatReader(hints);
-    const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
+    const devices = await barcodeScanner.listVideoInputDevices();
 
     if (!devices || devices.length === 0) {
       throw new Error('Nessuna fotocamera trovata');
@@ -1127,7 +1127,7 @@ async function startBarcodeScanner() {
 
     if (status) status.textContent = 'Fotocamera attiva: inquadra bene il codice a barre.';
 
-    barcodeControls = await barcodeScanner.decodeFromVideoDevice(deviceId, 'barcode-video', async (result, err) => {
+    await barcodeScanner.decodeFromVideoDevice(deviceId, 'barcode-video', async (result, err) => {
       if (result) {
         const code = result.getText();
         if (status) status.textContent = `Barcode trovato: ${code}`;
@@ -1144,10 +1144,6 @@ async function startBarcodeScanner() {
 }
 
 async function stopBarcodeScanner() {
-  try {
-    if (barcodeControls) barcodeControls.stop();
-  } catch(e) {}
-
   try {
     if (barcodeScanner) barcodeScanner.reset();
   } catch(e) {}
