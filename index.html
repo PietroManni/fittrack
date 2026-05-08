@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>FitTrack</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d0d0d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FitTrack">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.33.0/dist/tabler-icons.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d0d0d;
+      --bg2:     #1a1a1a;
+      --bg3:     #252525;
+      --text:    #f2f2f2;
+      --text2:   #888;
+      --text3:   #444;
+      --border:  rgba(255,255,255,0.09);
+      --border2: rgba(255,255,255,0.18);
+      --accent:  #22c55e;
+      --accent2: #16a34a;
+      --red:     #ef4444;
+      --blue:    #3b82f6;
+      --amber:   #f59e0b;
+      --r:  12px;
+      --r2: 8px;
+      --nav-h: 68px;
+      --safe: env(safe-area-inset-bottom, 0px);
+    }
+    [data-theme="light"] {
+      --bg:      #f0f0f0;
+      --bg2:     #ffffff;
+      --bg3:     #f5f5f5;
+      --text:    #111;
+      --text2:   #666;
+      --text3:   #bbb;
+      --border:  rgba(0,0,0,0.07);
+      --border2: rgba(0,0,0,0.14);
+    }
+
+    html, body {
+      height: 100%; overflow: hidden; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 16px; line-height: 1.5;
+    }
+    #app { display: flex; flex-direction: column; height: 100%; max-width: 520px; margin: 0 auto; }
+
+    #header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; background: var(--bg2); border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .logo { display: flex; align-items: center; gap: 9px; }
+    .logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; font-size: 17px; }
+    .logo-text { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
+    .header-right { display: flex; align-items: center; gap: 4px; }
+    .today-chip { font-size: 13px; color: var(--text2); margin-right: 4px; }
+    .icon-btn { background: none; border: none; cursor: pointer; color: var(--text2);
+      padding: 7px; border-radius: var(--r2); font-size: 19px;
+      display: flex; align-items: center; transition: background .15s; }
+    .icon-btn:hover, .icon-btn:active { background: var(--bg3); color: var(--text); }
+
+    #content {
+      flex: 1; overflow-y: auto; overflow-x: hidden;
+      padding: 16px 16px calc(var(--nav-h) + var(--safe) + 12px);
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #bottom-nav {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 520px; background: var(--bg2); border-top: 1px solid var(--border);
+      display: flex; padding-bottom: var(--safe); z-index: 100;
+    }
+    .ni { flex: 1; background: none; border: none; cursor: pointer;
+      padding: 10px 4px; display: flex; flex-direction: column; align-items: center;
+      gap: 3px; color: var(--text3); font-size: 10px; font-family: inherit;
+      transition: color .15s; }
+    .ni i { font-size: 22px; }
+    .ni span { font-weight: 500; letter-spacing: .01em; }
+    .ni.on { color: var(--accent); }
+
+    .card { background: var(--bg2); border-radius: var(--r); padding: 16px;
+      border: 1px solid var(--border); margin-bottom: 12px; }
+    .card:last-child { margin-bottom: 0; }
+    .card.tap { cursor: pointer; transition: border-color .15s; }
+    .card.tap:active { border-color: var(--border2); transform: scale(0.995); }
+    .card.dash { border-style: dashed; border-color: var(--border2); }
+
+    .pg-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 16px; }
+    .sec-lbl { font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .07em; color: var(--text2); margin-bottom: 10px; }
+
+    .m-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .m-card { background: var(--bg2); border-radius: var(--r); padding: 14px 16px;
+      border: 1px solid var(--border); }
+    .m-val { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.1; }
+    .m-lbl { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+    .pr { margin-bottom: 12px; }
+    .pr:last-child { margin-bottom: 0; }
+    .pr-hd { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+    .pr-hd .nm { color: var(--text2); }
+    .pr-hd .vl { font-weight: 500; }
+    .pr-track { height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+    .pr-fill { height: 100%; border-radius: 3px; transition: width .4s ease; }
+
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px;
+      border-radius: var(--r2); font-size: 14px; font-weight: 500; cursor: pointer;
+      border: 1px solid var(--border2); background: none; color: var(--text);
+      font-family: inherit; transition: background .15s; -webkit-tap-highlight-color: transparent; }
+    .btn:hover { background: var(--bg3); }
+    .btn:active { transform: scale(0.97); }
+    .full { width: 100%; justify-content: center; }
+    .prim { background: var(--accent); color: #fff; border-color: transparent; }
+    .prim:hover { background: var(--accent2); }
+    .sm { padding: 7px 12px; font-size: 13px; }
+    .dng { color: var(--red); border-color: transparent; }
+    .dng:hover { background: rgba(239,68,68,.12); }
+    .ib { padding: 8px; border-radius: var(--r2); border: none; background: none;
+      cursor: pointer; color: var(--text2); font-size: 19px;
+      display: flex; align-items: center; justify-content: center; }
+    .ib:hover { background: var(--bg3); color: var(--text); }
+    .ib.dng:hover { color: var(--red); }
+
+    .field { margin-bottom: 12px; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 11px; font-weight: 600; color: var(--text2);
+      margin-bottom: 6px; text-transform: uppercase; letter-spacing: .05em; }
+    .field input, .field textarea {
+      width: 100%; padding: 12px 14px; background: var(--bg3);
+      border: 1px solid var(--border); border-radius: var(--r2);
+      font-size: 15px; color: var(--text); font-family: inherit;
+      -webkit-appearance: none; appearance: none;
+    }
+    .field input:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
+    .field textarea { resize: vertical; }
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+    .rw  { display: flex; align-items: center; gap: 12px; }
+    .rwb { display: flex; align-items: center; justify-content: space-between; }
+    .rwg { display: flex; gap: 10px; }
+    .back { display: flex; align-items: center; gap: 6px; background: none; border: none;
+      cursor: pointer; color: var(--text2); font-size: 14px; font-family: inherit;
+      margin-bottom: 16px; padding: 4px 0; }
+    .back:hover { color: var(--text); }
+    .empty { text-align: center; padding: 40px 16px; color: var(--text2); font-size: 15px; line-height: 1.7; }
+    .ei { font-size: 44px; display: block; margin-bottom: 12px; }
+    .tag { font-size: 12px; color: var(--text2); display: inline-flex; align-items: center; gap: 4px; }
+    .pill { display: inline-block; font-size: 11px; font-weight: 700;
+      padding: 3px 10px; border-radius: 20px; letter-spacing: .02em; }
+    .pg { background: rgba(34,197,94,.15); color: #22c55e; }
+    .divider { height: 1px; background: var(--border); margin: 12px 0; }
+    .note { background: rgba(59,130,246,.1); border-radius: var(--r2); padding: 10px 12px;
+      font-size: 13px; color: #60a5fa; margin-top: 12px; display: flex; gap: 8px; align-items: flex-start; }
+    input[type="number"] { -moz-appearance: textfield; }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    .set-row {
+      display: grid;
+      grid-template-columns: 42px 1fr 1fr 34px;
+      gap: 8px;
+      align-items: center;
+      margin-top: 8px;
+    }
+    .set-num {
+      font-size: 13px;
+      color: var(--text2);
+      font-weight: 700;
+      text-align: center;
+    }
+    .set-row input {
+      width: 100%;
+      padding: 10px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--r2);
+      color: var(--text);
+      text-align: center;
+      font-size: 14px;
+    }
+    .set-row input:focus { outline: none; border-color: var(--accent); }
+    .set-done {
+      width: 24px;
+      height: 24px;
+      accent-color: var(--accent);
+      justify-self: center;
+    }
+    .set-head {
+      display: grid;
+      grid-template-columns: 42px 1fr 1fr 34px;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-top: 12px;
+      margin-bottom: 2px;
+      text-align: center;
+    }
+    .history-set {
+      display: grid;
+      grid-template-columns: 42px 1fr 1fr;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text2);
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .history-set:last-child { border-bottom: 0; }
+
+    .rest-timer {
+      background: linear-gradient(135deg, rgba(34,197,94,.18), rgba(59,130,246,.12));
+      border: 1px solid var(--border2);
+      border-radius: var(--r);
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      display: none;
+    }
+    .rest-timer.on { display: block; }
+    .timer-big {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1;
+      margin-top: 4px;
+    }
+    .chart-wrap {
+      display: flex;
+      align-items: end;
+      gap: 8px;
+      min-height: 120px;
+      padding: 12px 4px 4px;
+      border-top: 1px solid var(--border);
+      margin-top: 12px;
+    }
+    .bar-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+    .bar {
+      width: 100%;
+      min-height: 4px;
+      border-radius: 6px 6px 2px 2px;
+      background: var(--accent);
+      opacity: .85;
+    }
+    .bar-lbl {
+      font-size: 10px;
+      color: var(--text2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 48px;
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .stat-box {
+      background: var(--bg3);
+      border-radius: var(--r2);
+      padding: 10px;
+      text-align: center;
+    }
+    .stat-val { font-size: 17px; font-weight: 800; }
+    .stat-lbl { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header id="header">
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <span class="logo-text">FitTrack</span>
+    </div>
+    <div class="header-right">
+      <span class="today-chip" id="today-lbl"></span>
+      <button class="icon-btn" onclick="toggleTheme()" title="Cambia tema">
+        <i class="ti ti-sun" id="theme-ico"></i>
+      </button>
+    </div>
+  </header>
+
+  <main id="content"></main>
+
+  <nav id="bottom-nav">
+    <button class="ni on" id="ni-dash" onclick="setTab('dash')">
+      <i class="ti ti-layout-dashboard"></i><span>Dashboard</span>
+    </button>
+    <button class="ni" id="ni-train" onclick="setTab('train')">
+      <i class="ti ti-barbell"></i><span>Schede</span>
+    </button>
+    <button class="ni" id="ni-food" onclick="setTab('food')">
+      <i class="ti ti-salad"></i><span>Nutrizione</span>
+    </button>
+    <button class="ni" id="ni-settings" onclick="setTab('settings')">
+      <i class="ti ti-settings"></i><span>Obiettivi</span>
+    </button>
+  </nav>
+</div>
+
+<script>
+const KEY = 'fittrack_v2';
+let data = { plans:[], sessions:[], meals:[], goals:{cal:2200,pro:160,carb:250,fat:70} };
+
+function loadData() {
+  try {
+    const oldData = localStorage.getItem('fittrack_v1');
+    const newData = localStorage.getItem(KEY);
+    const raw = newData || oldData;
+    if (raw) data = {...data, ...JSON.parse(raw)};
+    saveData();
+  } catch(e) {}
+}
+function saveData() {
+  try { localStorage.setItem(KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+let tab = 'dash', view = 'main';
+let editPlanId = null, viewPlanId = null, viewSessionId = null;
+let restTimer = null, restLeft = 0;
+let editPlan = {name:'',desc:'',exercises:[]};
+let newEx   = {name:'',sets:'3',reps:'10',weight:''};
+let newMeal = {name:'',calories:'',protein:'',carbs:'',fat:''};
+let logSess = null;
+let nutDate = todayStr();
+
+function todayStr() { return new Date().toISOString().slice(0,10); }
+const uid  = () => Math.random().toString(36).slice(2,9);
+const num  = v => isNaN(v) ? 0 : Math.round(Number(v));
+const pct  = (v,g) => Math.min(100, g > 0 ? Math.round(v/g*100) : 0);
+
+function mealsOf(date) { return data.meals.filter(m => m.date === date); }
+function macrosOf(date) {
+  const ms = mealsOf(date);
+  return {
+    cal:  ms.reduce((s,m) => s+num(m.calories),0),
+    pro:  ms.reduce((s,m) => s+num(m.protein),0),
+    carb: ms.reduce((s,m) => s+num(m.carbs),0),
+    fat:  ms.reduce((s,m) => s+num(m.fat),0)
+  };
+}
+function sessOf(date) { return data.sessions.find(s => s.date === date); }
+
+function fmtDate(d) {
+  if (!d) return '';
+  const [y,m,day] = d.split('-');
+  const mo = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const t = todayStr();
+  if (d === t) return 'Oggi';
+  const yd = new Date(); yd.setDate(yd.getDate()-1);
+  if (d === yd.toISOString().slice(0,10)) return 'Ieri';
+  return `${parseInt(day)} ${mo[parseInt(m)-1]}`;
+}
+
+function escapeHtml(str='') {
+  return String(str)
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'",'&#039;');
+}
+
+function exDoneCount(session) {
+  return session.exercises?.filter(ex => ex.setsDone?.some(s => s.done)).length || 0;
+}
+function totalSetCount(session) {
+  return session.exercises?.reduce((sum,ex) => sum + (ex.setsDone?.length || 0), 0) || 0;
+}
+function doneSetCount(session) {
+  return session.exercises?.reduce((sum,ex) => sum + (ex.setsDone?.filter(s=>s.done).length || 0), 0) || 0;
+}
+
+function initTheme() {
+  const saved = localStorage.getItem('ft_theme');
+  const th = saved || (window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light');
+  applyTheme(th);
+}
+function applyTheme(th) {
+  document.documentElement.setAttribute('data-theme', th);
+  localStorage.setItem('ft_theme', th);
+  const ico = document.getElementById('theme-ico');
+  if (ico) ico.className = 'ti ' + (th==='dark' ? 'ti-sun' : 'ti-moon');
+}
+function toggleTheme() {
+  applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+}
+
+function setTab(t) {
+  tab = t; view = 'main'; logSess = null; viewSessionId = null;
+  ['dash','train','food','settings'].forEach(id => {
+    document.getElementById('ni-'+id)?.classList.toggle('on', id===t);
+  });
+  render();
+  document.getElementById('content').scrollTop = 0;
+}
+
+function goBack() {
+  view = 'main'; editPlanId = null; viewSessionId = null; logSess = null;
+  editPlan = {name:'',desc:'',exercises:[]};
+  newEx    = {name:'',sets:'3',reps:'10',weight:''};
+  newMeal  = {name:'',calories:'',protein:'',carbs:'',fat:''};
+  render();
+  document.getElementById('content').scrollTop = 0;
+}
+
+function vDash() {
+  const mac = macrosOf(todayStr());
+  const sess = sessOf(todayStr());
+  const g = data.goals;
+  return `
+    <div class="m-grid">
+      <div class="m-card"><div class="m-val" style="color:var(--accent)">${mac.cal}</div><div class="m-lbl">kcal oggi</div></div>
+      <div class="m-card"><div class="m-val">${mac.pro}g</div><div class="m-lbl">proteine</div></div>
+      <div class="m-card"><div class="m-val">${mac.carb}g</div><div class="m-lbl">carboidrati</div></div>
+      <div class="m-card"><div class="m-val">${mac.fat}g</div><div class="m-lbl">grassi</div></div>
+    </div>
+    <div class="card">
+      <div class="sec-lbl">Avanzamento</div>
+      ${[['Calorie',mac.cal,g.cal,'kcal','var(--accent)'],['Proteine',mac.pro,g.pro,'g','#22c55e'],['Carboidrati',mac.carb,g.carb,'g','var(--blue)'],['Grassi',mac.fat,g.fat,'g','var(--amber)']].map(([l,v,gv,u,c])=>`
+        <div class="pr">
+          <div class="pr-hd"><span class="nm">${l}</span><span class="vl">${v} <span style="color:var(--text2);font-weight:400">/ ${gv}${u}</span></span></div>
+          <div class="pr-track"><div class="pr-fill" style="width:${pct(v,gv)}%;background:${c}"></div></div>
+        </div>`).join('')}
+    </div>
+    <div class="card">
+      <div class="sec-lbl">Allenamento di oggi</div>
+      ${sess ? `
+        <div class="rwb">
+          <div>
+            <div style="font-size:15px;font-weight:600">${escapeHtml(sess.planName)}</div>
+            <div style="font-size:13px;color:var(--text2);margin-top:3px">${doneSetCount(sess)} / ${totalSetCount(sess)} serie completate</div>
+          </div>
+          <button class="btn sm" onclick="setTab('train');viewSession('${sess.id}')">Dettagli</button>
+        </div>` : `
+        <div class="rwb">
+          <span style="font-size:14px;color:var(--text2)">Nessuna sessione oggi</span>
+          <button class="btn sm" onclick="setTab('train')">Schede <i class="ti ti-arrow-right"></i></button>
+        </div>`}
+    </div>
+    <div class="rwg">
+      <button class="btn prim" style="flex:1;justify-content:center" onclick="setTab('food');view='add-meal';render()"><i class="ti ti-plus"></i> Alimento</button>
+      <button class="btn" style="flex:1;justify-content:center" onclick="setTab('train')"><i class="ti ti-barbell"></i> Schede</button>
+    </div>`;
+}
+
+function vTrain() {
+  if (view==='new-plan')    return vNewPlan();
+  if (view==='plan-detail') return vPlanDetail();
+  if (view==='log-workout') return vLogWorkout();
+  if (view==='session-detail') return vSessionDetail();
+  return `
+    <div class="rwb" style="margin-bottom:16px">
+      <div class="pg-title" style="margin-bottom:0">Le mie schede</div>
+      <button class="btn prim sm" onclick="startNewPlan()"><i class="ti ti-plus"></i> Nuova</button>
+    </div>
+    ${data.plans.length===0 ? `<div class="empty"><span class="ei">🏋️</span>Nessuna scheda ancora.<br>Crea la tua prima scheda!</div>` : ''}
+    ${data.plans.map(p=>`
+      <div class="card tap" onclick="viewPlan('${p.id}')">
+        <div class="rwb">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:16px;font-weight:600;margin-bottom:3px">${escapeHtml(p.name)}</div>
+            ${p.desc?`<div style="font-size:13px;color:var(--text2);margin-bottom:6px">${escapeHtml(p.desc)}</div>`:''}
+            <span class="tag"><i class="ti ti-list"></i> ${p.exercises.length} esercizi</span>
+          </div>
+          <button class="btn prim sm" style="margin-left:12px;flex-shrink:0" onclick="event.stopPropagation();startLogWorkout('${p.id}')">
+            <i class="ti ti-player-play"></i> Inizia
+          </button>
+        </div>
+      </div>`).join('')}
+    ${data.sessions.length>0?`
+      <div style="margin-top:20px">
+        <div class="sec-lbl">Storico recente</div>
+        ${data.sessions.slice().reverse().slice(0,8).map(s=>`
+          <div class="card tap" onclick="viewSession('${s.id}')">
+            <div class="rwb">
+              <div>
+                <div style="font-size:15px;font-weight:600">${escapeHtml(s.planName)}</div>
+                <div style="font-size:12px;color:var(--text2);margin-top:3px">${fmtDate(s.date)} · ${doneSetCount(s)}/${totalSetCount(s)} serie</div>
+              </div>
+              <button class="ib dng" onclick="event.stopPropagation();delSess('${s.id}')"><i class="ti ti-trash"></i></button>
+            </div>
+          </div>`).join('')}
+      </div>`:'' }`;
+}
+
+function vNewPlan() {
+  return `
+    <button class="back" onclick="goBack()"><i class="ti ti-arrow-left"></i> Indietro</button>
+    <div class="pg-title">${editPlanId ? 'Modifica scheda' : 'Nuova scheda'}</div>
+    <div class="card">
+      <div class="field"><label>Nome scheda *</label><input id="pname" placeholder="es. Upper 1, Leg Day, Push" value="${escapeHtml(editPlan.name)}" oninput="editPlan.name=this.value"></div>
+      <div class="field"><label>Descrizione</label><input placeholder="es. 4 volte a settimana, ipertrofia" value="${escapeHtml(editPlan.desc||'')}" oninput="editPlan.desc=this.value"></div>
+    </div>
+    <div class="sec-lbl" style="margin-top:16px">Esercizi ${editPlan.exercises.length>0?`(${editPlan.exercises.length})`:''}</div>
+    ${editPlan.exercises.map((ex,i)=>`
+      <div class="card">
+        <div class="rwb">
+          <div>
+            <div style="font-size:15px;font-weight:600">${escapeHtml(ex.name)}</div>
+            <div style="font-size:13px;color:var(--text2);margin-top:3px">${ex.sets} serie × ${ex.reps} reps${ex.weight?` @ ${ex.weight}kg`:''}</div>
+          </div>
+          <button class="ib dng" onclick="rmEx(${i})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`).join('')}
+    <div class="card dash">
+      <div class="sec-lbl">Aggiungi esercizio</div>
+      <div class="field"><label>Nome *</label><input id="exname" placeholder="es. Panca Piana, Squat, Curl..." value="${escapeHtml(newEx.name)}" oninput="newEx.name=this.value"></div>
+      <div class="g3" style="margin-bottom:12px">
+        <div class="field"><label>Serie</label><input type="number" min="1" placeholder="3" value="${newEx.sets}" oninput="newEx.sets=this.value" style="text-align:center"></div>
+        <div class="field"><label>Reps target</label><input type="number" min="1" placeholder="10" value="${newEx.reps}" oninput="newEx.reps=this.value" style="text-align:center"></div>
+        <div class="field"><label>Kg target</label><input type="number" min="0" step="0.5" placeholder="—" value="${newEx.weight}" oninput="newEx.weight=this.value" style="text-align:center"></div>
+      </div>
+      <button class="btn full" onclick="addEx()"><i class="ti ti-plus"></i> Aggiungi esercizio</button>
+    </div>
+    <div class="rwg" style="margin-top:4px">
+      <button class="btn prim" style="flex:1;justify-content:center" onclick="savePlan()"><i class="ti ti-check"></i> Salva scheda</button>
+      <button class="btn" onclick="goBack()">Annulla</button>
+    </div>`;
+}
+
+function vPlanDetail() {
+  const p = data.plans.find(x=>x.id===viewPlanId);
+  if (!p) { goBack(); return ''; }
+  return `
+    <button class="back" onclick="goBack()"><i class="ti ti-arrow-left"></i> Le mie schede</button>
+    <div class="rwb" style="margin-bottom:16px">
+      <div>
+        <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px">${escapeHtml(p.name)}</div>
+        ${p.desc?`<div style="font-size:14px;color:var(--text2);margin-top:4px">${escapeHtml(p.desc)}</div>`:''}
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="ib" onclick="editPlanFn('${p.id}')"><i class="ti ti-edit"></i></button>
+        <button class="ib dng" onclick="delPlan('${p.id}')"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>
+    ${p.exercises.map(ex=>`
+      <div class="card">
+        <div class="rwb">
+          <div style="font-size:15px;font-weight:600">${escapeHtml(ex.name)}</div>
+          <div style="display:flex;gap:16px;font-size:13px;color:var(--text2)">
+            <span><strong style="color:var(--text)">${ex.sets}</strong> serie</span>
+            <span>× <strong style="color:var(--text)">${ex.reps}</strong></span>
+            ${ex.weight?`<span><strong style="color:var(--text)">${ex.weight}</strong>kg</span>`:''}
+          </div>
+        </div>
+      </div>`).join('')}
+    <button class="btn prim full" onclick="startLogWorkout('${p.id}')" style="margin-top:12px">
+      <i class="ti ti-player-play"></i> Inizia allenamento
+    </button>`;
+}
+
+function vLogWorkout() {
+  if (!logSess) { goBack(); return ''; }
+  const doneSets  = doneSetCount(logSess);
+  const totalSets = totalSetCount(logSess);
+  return `
+    <button class="back" onclick="goBack()"><i class="ti ti-arrow-left"></i> Annulla</button>
+    <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px;margin-bottom:4px">${escapeHtml(logSess.planName)}</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px">${doneSets} / ${totalSets} serie completate</div>
+    <div class="pr-track" style="height:8px;margin-bottom:20px">
+      <div class="pr-fill" style="width:${pct(doneSets,totalSets)}%;background:var(--accent)"></div>
+    </div>
+    <div class="rest-timer" id="rest-timer-box">
+      <div class="rwb">
+        <div>
+          <div class="sec-lbl" style="margin-bottom:0">Recupero</div>
+          <div class="timer-big" id="rest-timer-text">01:30</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn sm" onclick="startRestTimer(90)">90s</button>
+          <button class="btn sm" onclick="startRestTimer(120)">120s</button>
+          <button class="ib dng" onclick="stopRestTimer()"><i class="ti ti-x"></i></button>
+        </div>
+      </div>
+    </div>
+    ${logSess.exercises.map((ex,i)=>`
+      <div class="card">
+        <div class="rwb">
+          <div>
+            <div style="font-size:15px;font-weight:700">${escapeHtml(ex.name)}</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Target: ${ex.sets} × ${ex.reps}${ex.weight?` @ ${ex.weight}kg`:''}</div>
+          </div>
+          <button class="btn sm" onclick="addSetToExercise(${i})"><i class="ti ti-plus"></i> Serie</button>
+        </div>
+        <div class="set-head"><span>#</span><span>Kg</span><span>Reps</span><span>✓</span></div>
+        ${ex.setsDone.map((s,j)=>`
+          <div class="set-row">
+            <div class="set-num">${j+1}</div>
+            <input type="number" min="0" step="0.5" placeholder="kg" value="${s.weight}" oninput="updateSet(${i},${j},'weight',this.value)">
+            <input type="number" min="0" step="1" placeholder="reps" value="${s.reps}" oninput="updateSet(${i},${j},'reps',this.value)">
+            <input class="set-done" type="checkbox" ${s.done?'checked':''} onchange="updateSet(${i},${j},'done',this.checked)">
+          </div>`).join('')}
+      </div>`).join('')}
+    <div class="field" style="margin-top:8px">
+      <label>Note sessione</label>
+      <textarea placeholder="Come è andata? PR, sensazioni, difficoltà..." rows="3" oninput="logSess.notes=this.value">${escapeHtml(logSess.notes||'')}</textarea>
+    </div>
+    <div class="rwg" style="margin-top:8px">
+      <button class="btn prim" style="flex:1;justify-content:center" onclick="saveSess()"><i class="ti ti-check"></i> Salva sessione</button>
+      <button class="btn" onclick="goBack()">Annulla</button>
+    </div>`;
+}
+
+function vSessionDetail() {
+  const s = data.sessions.find(x=>x.id===viewSessionId);
+  if (!s) { goBack(); return ''; }
+  return `
+    <button class="back" onclick="goBack()"><i class="ti ti-arrow-left"></i> Storico</button>
+    <div class="rwb" style="margin-bottom:16px">
+      <div>
+        <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px">${escapeHtml(s.planName)}</div>
+        <div style="font-size:13px;color:var(--text2);margin-top:3px">${fmtDate(s.date)} · ${doneSetCount(s)}/${totalSetCount(s)} serie</div>
+      </div>
+      <button class="ib dng" onclick="delSess('${s.id}')"><i class="ti ti-trash"></i></button>
+    </div>
+    ${s.exercises.map(ex=>`
+      <div class="card">
+        <div class="rwb" style="margin-bottom:8px">
+          <div style="font-size:15px;font-weight:700">${escapeHtml(ex.name)}</div>
+          <button class="btn sm" onclick="showExerciseHistory('${escapeHtml(ex.name)}')">
+            <i class="ti ti-chart-line"></i> Storico
+          </button>
+        </div>
+        ${(ex.setsDone||[]).map((set,j)=>`
+          <div class="history-set">
+            <span>Serie ${j+1}</span>
+            <span><strong style="color:var(--text)">${set.weight || '-'}</strong> kg</span>
+            <span><strong style="color:var(--text)">${set.reps || '-'}</strong> reps ${set.done?'✓':''}</span>
+          </div>`).join('')}
+      </div>`).join('')}
+    ${s.notes?`
+      <div class="card">
+        <div class="sec-lbl">Note</div>
+        <div style="font-size:14px;color:var(--text2);white-space:pre-wrap">${escapeHtml(s.notes)}</div>
+      </div>`:''}`;
+}
+
+function getExerciseHistory(name) {
+  const history = [];
+
+  data.sessions.forEach(session => {
+    session.exercises?.forEach(ex => {
+      if (ex.name.toLowerCase() === name.toLowerCase()) {
+        history.push({
+          date: session.date,
+          sets: ex.setsDone || []
+        });
+      }
+    });
+  });
+
+  return history.sort((a,b) => b.date.localeCompare(a.date));
+}
+
+function getExerciseStats(history) {
+  let bestWeight = 0;
+  let bestVolume = 0;
+  let best1RM = 0;
+
+  history.forEach(h => {
+    let dayVolume = 0;
+    h.sets.forEach(s => {
+      const w = Number(s.weight) || 0;
+      const r = Number(s.reps) || 0;
+      if (!w || !r) return;
+      bestWeight = Math.max(bestWeight, w);
+      dayVolume += w * r;
+      best1RM = Math.max(best1RM, w * (1 + r / 30));
+    });
+    bestVolume = Math.max(bestVolume, dayVolume);
+    h.volume = dayVolume;
+  });
+
+  return {
+    bestWeight: Math.round(bestWeight * 10) / 10,
+    bestVolume: Math.round(bestVolume),
+    best1RM: Math.round(best1RM * 10) / 10
+  };
+}
+
+function renderProgressChart(history) {
+  const rows = history.slice().reverse().slice(-8);
+  const max = Math.max(...rows.map(h => h.volume || 0), 1);
+
+  return `
+    <div class="chart-wrap">
+      ${rows.map(h => `
+        <div class="bar-col">
+          <div class="bar" style="height:${Math.max(4, Math.round((h.volume || 0) / max * 100))}px"></div>
+          <div class="bar-lbl">${fmtDate(h.date)}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function showExerciseHistory(name) {
+  const history = getExerciseHistory(name);
+  const stats = getExerciseStats(history);
+
+  const html = `
+    <button class="back" onclick="viewSession('${viewSessionId}')"><i class="ti ti-arrow-left"></i> Sessione</button>
+    <div class="pg-title">${escapeHtml(name)}</div>
+
+    ${history.length === 0 ? `
+      <div class="empty">Nessuno storico disponibile</div>
+    ` : `
+      <div class="card">
+        <div class="sec-lbl">Record automatici</div>
+        <div class="stat-grid">
+          <div class="stat-box">
+            <div class="stat-val">${stats.bestWeight || '-'}</div>
+            <div class="stat-lbl">kg max</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val">${stats.best1RM || '-'}</div>
+            <div class="stat-lbl">1RM stim.</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val">${stats.bestVolume || '-'}</div>
+            <div class="stat-lbl">volume</div>
+          </div>
+        </div>
+        <div class="sec-lbl" style="margin-top:12px">Progressione volume</div>
+        ${renderProgressChart(history)}
+      </div>
+
+      ${history.map(h => `
+        <div class="card">
+          <div class="rwb" style="margin-bottom:10px">
+            <div style="font-size:15px;font-weight:700">${fmtDate(h.date)}</div>
+            <span class="tag">Volume: ${Math.round(h.volume || 0)} kg</span>
+          </div>
+
+          ${h.sets.map((s,i) => `
+            <div class="history-set">
+              <span>Serie ${i+1}</span>
+              <span><strong style="color:var(--text)">${s.weight || '-'}</strong> kg</span>
+              <span><strong style="color:var(--text)">${s.reps || '-'}</strong> reps</span>
+            </div>
+          `).join('')}
+        </div>
+      `).join('')}
+    `}
+  `;
+
+  document.getElementById('content').innerHTML = html;
+}
+
+function vFood() {
+  if (view==='add-meal') return vAddMeal();
+  const mac   = macrosOf(nutDate);
+  const meals = mealsOf(nutDate);
+  const g     = data.goals;
+  const today = todayStr();
+  const isToday = nutDate === today;
+  return `
+    <div class="rwb" style="margin-bottom:16px">
+      <button class="ib" onclick="chgDate(-1)"><i class="ti ti-chevron-left"></i></button>
+      <div style="text-align:center">
+        <div style="font-size:16px;font-weight:600">${fmtDate(nutDate)}</div>
+        <div style="font-size:12px;color:var(--text2)">${mac.cal} kcal</div>
+      </div>
+      <button class="ib" ${isToday?'disabled style="opacity:.3"':''} onclick="chgDate(1)"><i class="ti ti-chevron-right"></i></button>
+    </div>
+    <div class="card">
+      <div class="sec-lbl">Macronutrienti</div>
+      ${[['Calorie',mac.cal,g.cal,'kcal','var(--accent)'],['Proteine',mac.pro,g.pro,'g','#22c55e'],['Carboidrati',mac.carb,g.carb,'g','var(--blue)'],['Grassi',mac.fat,g.fat,'g','var(--amber)']].map(([l,v,gv,u,c])=>`
+        <div class="pr">
+          <div class="pr-hd"><span class="nm">${l}</span><span class="vl">${v} <span style="color:var(--text2);font-weight:400">/ ${gv}${u}</span></span></div>
+          <div class="pr-track"><div class="pr-fill" style="width:${pct(v,gv)}%;background:${c}"></div></div>
+        </div>`).join('')}
+    </div>
+    <div class="rwb" style="margin-bottom:10px">
+      <div class="sec-lbl" style="margin-bottom:0">Alimenti (${meals.length})</div>
+      ${isToday?`<button class="btn prim sm" onclick="goAddMeal()"><i class="ti ti-plus"></i> Aggiungi</button>`:''}
+    </div>
+    ${meals.length===0 ? `
+      <div class="empty"><span class="ei">🥗</span>Nessun alimento registrato.${isToday?`<br><br><button class="btn prim" onclick="goAddMeal()"><i class="ti ti-plus"></i> Aggiungi alimento</button>`:''}</div>` : `
+      <div class="card">
+        ${meals.map(m=>`
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(m.name)}</div>
+              <div style="font-size:12px;color:var(--text2);margin-top:2px">${num(m.calories)} kcal · P: ${num(m.protein)}g · C: ${num(m.carbs)}g · G: ${num(m.fat)}g</div>
+            </div>
+            ${isToday?`<button class="ib dng" onclick="delMeal('${m.id}')"><i class="ti ti-trash"></i></button>`:''}
+          </div>`).join('')}
+        <div style="padding-top:10px;display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text2)">
+          <span>Tot: <strong style="color:var(--text)">${mac.cal} kcal</strong></span>
+          <span>P: <strong style="color:var(--text)">${mac.pro}g</strong></span>
+          <span>C: <strong style="color:var(--text)">${mac.carb}g</strong></span>
+          <span>G: <strong style="color:var(--text)">${mac.fat}g</strong></span>
+        </div>
+      </div>`}`;
+}
+
+function vAddMeal() {
+  return `
+    <button class="back" onclick="goBack()"><i class="ti ti-arrow-left"></i> Nutrizione</button>
+    <div class="pg-title">Aggiungi alimento</div>
+    <div class="card">
+      <div class="field"><label>Nome *</label><input id="mname" placeholder="es. Petto di pollo 150g, Pasta 80g..." value="${escapeHtml(newMeal.name)}" oninput="newMeal.name=this.value"></div>
+      <div class="g2">
+        <div class="field"><label>Calorie (kcal) *</label><input type="number" min="0" placeholder="0" value="${newMeal.calories}" oninput="newMeal.calories=this.value"></div>
+        <div class="field"><label>Proteine (g)</label><input type="number" min="0" placeholder="0" value="${newMeal.protein}" oninput="newMeal.protein=this.value"></div>
+        <div class="field"><label>Carboidrati (g)</label><input type="number" min="0" placeholder="0" value="${newMeal.carbs}" oninput="newMeal.carbs=this.value"></div>
+        <div class="field"><label>Grassi (g)</label><input type="number" min="0" placeholder="0" value="${newMeal.fat}" oninput="newMeal.fat=this.value"></div>
+      </div>
+    </div>
+    <div class="note"><i class="ti ti-info-circle" style="flex-shrink:0;font-size:17px"></i> Valori sull'etichetta del prodotto o su MyFitnessPal, Cronometer, FoodData Central</div>
+    <div class="rwg" style="margin-top:14px">
+      <button class="btn prim" style="flex:1;justify-content:center" onclick="saveMeal()"><i class="ti ti-check"></i> Salva</button>
+      <button class="btn" onclick="goBack()">Annulla</button>
+    </div>`;
+}
+
+function vSettings() {
+  const g = data.goals;
+  return `
+    <div class="pg-title">Obiettivi</div>
+    <div class="card">
+      <div class="sec-lbl">Obiettivi giornalieri</div>
+      <div class="field"><label>Calorie (kcal)</label><input type="number" min="0" value="${g.cal}" oninput="upGoal('cal',this.value)"></div>
+      <div class="field"><label>Proteine (g)</label><input type="number" min="0" value="${g.pro}" oninput="upGoal('pro',this.value)"></div>
+      <div class="field"><label>Carboidrati (g)</label><input type="number" min="0" value="${g.carb}" oninput="upGoal('carb',this.value)"></div>
+      <div class="field"><label>Grassi (g)</label><input type="number" min="0" value="${g.fat}" oninput="upGoal('fat',this.value)"></div>
+    </div>
+    <div class="card" style="margin-top:4px">
+      <div class="sec-lbl">I tuoi dati</div>
+      <div style="font-size:14px;color:var(--text2);line-height:1.7">
+        ${data.plans.length} schede · ${data.sessions.length} sessioni · ${data.meals.length} alimenti<br>
+        <span style="font-size:12px">Salvati localmente su questo dispositivo</span>
+      </div>
+    </div>
+    <div class="card" style="margin-top:4px">
+      <div class="sec-lbl">Installazione</div>
+      <div style="font-size:14px;color:var(--text2);line-height:1.8">
+        📱 <strong style="color:var(--text)">iPhone:</strong> Safari → Condividi → "Aggiungi a schermata Home"<br>
+        🤖 <strong style="color:var(--text)">Android:</strong> Chrome → menu ⋮ → "Installa app"<br>
+        💻 <strong style="color:var(--text)">Desktop:</strong> icona ⊕ nella barra indirizzi
+      </div>
+    </div>
+    <div class="card" style="margin-top:4px">
+      <div class="sec-lbl">Backup dati</div>
+      <div style="font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:12px">
+        Esporta un file JSON per salvare schede, sessioni, alimenti e obiettivi. Puoi importarlo su un altro telefono.
+      </div>
+      <div class="rwg">
+        <button class="btn prim" style="flex:1;justify-content:center" onclick="exportBackup()"><i class="ti ti-download"></i> Esporta</button>
+        <button class="btn" style="flex:1;justify-content:center" onclick="document.getElementById('import-file').click()"><i class="ti ti-upload"></i> Importa</button>
+      </div>
+      <input id="import-file" type="file" accept="application/json" style="display:none" onchange="importBackup(this)">
+    </div>
+    <button class="btn dng full" onclick="resetAll()" style="margin-top:8px">
+      <i class="ti ti-trash"></i> Cancella tutti i dati
+    </button>`;
+}
+
+function chgDate(d) {
+  const dt = new Date(nutDate); dt.setDate(dt.getDate()+d);
+  const s = dt.toISOString().slice(0,10);
+  if (s <= todayStr()) { nutDate = s; render(); }
+}
+function upGoal(k,v) { data.goals[k] = Number(v)||0; saveData(); }
+function startNewPlan() { editPlanId=null; editPlan={name:'',desc:'',exercises:[]}; newEx={name:'',sets:'3',reps:'10',weight:''}; view='new-plan'; render(); }
+function editPlanFn(id) {
+  const p = data.plans.find(x=>x.id===id); if (!p) return;
+  editPlanId=id; editPlan={name:p.name,desc:p.desc||'',exercises:p.exercises.map(e=>({...e}))};
+  view='new-plan'; render();
+}
+function viewPlan(id) { viewPlanId=id; view='plan-detail'; render(); }
+function viewSession(id) { viewSessionId=id; view='session-detail'; tab='train'; render(); }
+function addEx() {
+  if (!newEx.name.trim()) return;
+  editPlan.exercises.push({id:uid(),name:newEx.name.trim(),sets:newEx.sets||'3',reps:newEx.reps||'10',weight:newEx.weight||''});
+  newEx={name:'',sets:'3',reps:'10',weight:''}; render();
+  setTimeout(()=>document.getElementById('exname')?.focus(),60);
+}
+function rmEx(i) { editPlan.exercises.splice(i,1); render(); }
+function savePlan() {
+  if (!editPlan.name.trim()) return;
+  if (editPlanId) {
+    const idx = data.plans.findIndex(p=>p.id===editPlanId);
+    if (idx>=0) data.plans[idx] = {...data.plans[idx],...editPlan};
+  } else {
+    data.plans.push({id:uid(),...editPlan});
+  }
+  saveData(); goBack();
+}
+function delPlan(id) {
+  if (!confirm('Eliminare questa scheda?')) return;
+  data.plans = data.plans.filter(p=>p.id!==id);
+  saveData(); goBack();
+}
+function startLogWorkout(planId) {
+  const p = data.plans.find(x=>x.id===planId); if (!p) return;
+  logSess = {
+    planId:p.id,
+    planName:p.name,
+    exercises:p.exercises.map(ex=>({
+      ...ex,
+      setsDone:Array.from({length: Math.max(1, Number(ex.sets)||1)}, () => ({
+        weight: ex.weight || '',
+        reps: ex.reps || '',
+        done: false
+      }))
+    })),
+    notes:''
+  };
+  view='log-workout'; tab='train';
+  ['dash','train','food','settings'].forEach(id=>document.getElementById('ni-'+id)?.classList.toggle('on',id==='train'));
+  render();
+}
+function updateSet(exIndex, setIndex, field, value) {
+  if (!logSess) return;
+  logSess.exercises[exIndex].setsDone[setIndex][field] = value;
+  if (field === 'done') {
+    render();
+    if (value) startRestTimer(90);
+  }
+}
+
+function startRestTimer(seconds = 90) {
+  restLeft = seconds;
+  clearInterval(restTimer);
+  updateRestTimerUI();
+
+  restTimer = setInterval(() => {
+    restLeft--;
+    updateRestTimerUI();
+
+    if (restLeft <= 0) {
+      clearInterval(restTimer);
+      restTimer = null;
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      alert('Recupero finito!');
+      stopRestTimer();
+    }
+  }, 1000);
+}
+
+function updateRestTimerUI() {
+  const box = document.getElementById('rest-timer-box');
+  const txt = document.getElementById('rest-timer-text');
+  if (!box || !txt) return;
+
+  box.classList.add('on');
+  const m = Math.floor(restLeft / 60).toString().padStart(2,'0');
+  const s = Math.max(0, restLeft % 60).toString().padStart(2,'0');
+  txt.textContent = `${m}:${s}`;
+}
+
+function stopRestTimer() {
+  clearInterval(restTimer);
+  restTimer = null;
+  restLeft = 0;
+  const box = document.getElementById('rest-timer-box');
+  if (box) box.classList.remove('on');
+}
+function addSetToExercise(exIndex) {
+  if (!logSess) return;
+  const ex = logSess.exercises[exIndex];
+  const last = ex.setsDone[ex.setsDone.length - 1] || {weight:ex.weight||'', reps:ex.reps||'', done:false};
+  ex.setsDone.push({weight:last.weight || ex.weight || '', reps:last.reps || ex.reps || '', done:false});
+  render();
+}
+function saveSess() {
+  if (!logSess) return;
+  data.sessions = data.sessions.filter(s=>!(s.date===todayStr()&&s.planId===logSess.planId));
+  data.sessions.push({id:uid(),date:todayStr(),planId:logSess.planId,planName:logSess.planName,exercises:logSess.exercises,notes:logSess.notes});
+  saveData(); logSess=null; view='main'; setTab('dash');
+}
+function delSess(id) {
+  if (!confirm('Eliminare questa sessione?')) return;
+  data.sessions=data.sessions.filter(s=>s.id!==id);
+  saveData(); goBack();
+}
+function goAddMeal() { newMeal={name:'',calories:'',protein:'',carbs:'',fat:''}; view='add-meal'; render(); }
+function saveMeal() {
+  if (!newMeal.name.trim()||!newMeal.calories) return;
+  data.meals.push({id:uid(),date:todayStr(),name:newMeal.name.trim(),calories:Number(newMeal.calories)||0,protein:Number(newMeal.protein)||0,carbs:Number(newMeal.carbs)||0,fat:Number(newMeal.fat)||0});
+  saveData(); goBack();
+}
+function delMeal(id) { data.meals=data.meals.filter(m=>m.id!==id); saveData(); render(); }
+function exportBackup() {
+  const payload = {
+    app: 'FitTrack',
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    data
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fittrack_backup_${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function importBackup(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      const importedData = parsed.data || parsed;
+
+      if (!importedData.plans || !importedData.sessions || !importedData.meals || !importedData.goals) {
+        alert('File non valido.');
+        return;
+      }
+
+      if (!confirm('Importare questo backup? I dati attuali verranno sostituiti.')) return;
+      data = importedData;
+      saveData();
+      render();
+      alert('Backup importato correttamente.');
+    } catch(err) {
+      alert('Errore durante importazione backup.');
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function resetAll() {
+  if (!confirm('Cancellare TUTTI i dati? Azione irreversibile.')) return;
+  data={plans:[],sessions:[],meals:[],goals:{cal:2200,pro:160,carb:250,fat:70}};
+  localStorage.removeItem('fittrack_v1');
+  saveData(); render();
+}
+
+function render() {
+  let html = '';
+  if (tab==='dash') html = vDash();
+  else if (tab==='train') html = vTrain();
+  else if (tab==='food') html = vFood();
+  else if (tab==='settings') html = vSettings();
+  document.getElementById('content').innerHTML = html;
+}
+
+loadData();
+initTheme();
+document.getElementById('today-lbl').textContent = new Date().toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'short'});
+render();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
