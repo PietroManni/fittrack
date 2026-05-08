@@ -1115,8 +1115,8 @@ async function startBarcodeScanner() {
     ]);
     hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
 
-    barcodeScanner = new ZXing.BrowserMultiFormatReader(hints, 500);
-    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+    barcodeScanner = new ZXing.BrowserMultiFormatReader(hints);
+    const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
 
     if (!devices || devices.length === 0) {
       throw new Error('Nessuna fotocamera trovata');
@@ -1127,7 +1127,7 @@ async function startBarcodeScanner() {
 
     if (status) status.textContent = 'Fotocamera attiva: inquadra bene il codice a barre.';
 
-    barcodeControls = await barcodeScanner.decodeFromVideoDevice(deviceId, video, async (result, err) => {
+    barcodeControls = await barcodeScanner.decodeFromVideoDevice(deviceId, 'barcode-video', async (result, err) => {
       if (result) {
         const code = result.getText();
         if (status) status.textContent = `Barcode trovato: ${code}`;
@@ -1136,10 +1136,10 @@ async function startBarcodeScanner() {
       }
     });
   } catch(e) {
+    console.error('ZXing scanner error:', e);
     if (status) {
-      status.textContent = 'Non riesco ad avviare lo scanner. Controlla i permessi fotocamera oppure inserisci il barcode manualmente.';
+      status.textContent = `Errore scanner: ${e?.message || e}. Prova da Safari/Chrome aggiornato oppure usa barcode manuale.`;
     }
-    await stopBarcodeScanner();
   }
 }
 
