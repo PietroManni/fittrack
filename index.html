@@ -866,6 +866,14 @@ function vAddMeal() {
         <button class="btn prim full" onclick="startBarcodeScanner()"><i class="ti ti-barcode"></i> Scansiona barcode</button>
       </div>
       <div id="barcode-reader" style="display:none;margin-bottom:12px;border-radius:12px;overflow:hidden;background:var(--bg3)"></div>
+      <div id="barcode-status" style="display:none;font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6"></div>
+      <div class="field">
+        <label>Barcode manuale</label>
+        <div class="rwg">
+          <input id="manual-barcode" placeholder="es. 8076809513753" style="flex:1" inputmode="numeric">
+          <button class="btn" onclick="fetchFoodByBarcode(document.getElementById('manual-barcode').value)">Cerca</button>
+        </div>
+      </div>
       <div class="field"><label>Nome *</label><input id="mname" placeholder="es. Petto di pollo 150g, Pasta 80g..." value="${escapeHtml(newMeal.name)}" oninput="newMeal.name=this.value"></div>
       <div class="field"><label>Quantità consumata (g)</label><input type="number" min="1" placeholder="100" value="${newMeal.grams || '100'}" oninput="newMeal.grams=this.value;recalcMealFromBase();"></div>
       <div class="g2">
@@ -1061,32 +1069,77 @@ function recalcMealFromBase() {
 }
 
 async function startBarcodeScanner() {
+  const status = document.getElementById('barcode-status');
+  const box = document.getElementById('barcode-reader');
+
+  if (status) {
+    status.style.display = 'block';
+    status.textContent = 'Apro la fotocamera...';
+  }
+
+  if (!window.isSecureContext) {
+    if (status) status.textContent = 'La fotocamera funziona solo su HTTPS o localhost. Apri il sito da GitHub Pages, non come file locale.';
+    return;
+  }
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (status) status.textContent = 'Questo browser non supporta l’accesso alla fotocamera. Usa Safari su iPhone o Chrome su Android.';
+    return;
+  }
+
   if (!window.Html5Qrcode) {
-    alert('Scanner non ancora caricato. Riprova tra un secondo.');
+    if (status) status.textContent = 'Scanner non ancora caricato. Riprova tra un secondo.';
     return;
   }
 
   await stopBarcodeScanner();
 
-  const box = document.getElementById('barcode-reader');
   if (!box) return;
-
   box.style.display = 'block';
-  box.style.minHeight = '260px';
+  box.style.minHeight = '280px';
 
   barcodeScanner = new Html5Qrcode('barcode-reader');
 
+  const onSuccess = async decodedText => {
+    if (status) status.textContent = `Barcode trovato: ${decodedText}`;
+    await stopBarcodeScanner();
+    await fetchFoodByBarcode(decodedText);
+  };
+
   try {
+    if (status) status.textContent = 'Fotocamera attiva: inquadra il codice a barre.';
     await barcodeScanner.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 240, height: 140 } },
-      async decodedText => {
-        await stopBarcodeScanner();
-        await fetchFoodByBarcode(decodedText);
-      }
+      { facingMode: { exact: 'environment' } },
+      { fps: 10, qrbox: { width: 280, height: 160 } },
+      onSuccess
     );
-  } catch(e) {
-    alert('Non riesco ad aprire la fotocamera. Controlla i permessi del browser.');
+  } catch(e1) {
+    try {
+      if (status) status.textContent = 'Provo ad aprire una fotocamera disponibile...';
+      await barcodeScanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 280, height: 160 } },
+        onSuccess
+      );
+      if (status) status.textContent = 'Fotocamera attiva: inquadra il codice a barre.';
+    } catch(e2) {
+      try {
+        const cameras = await Html5Qrcode.getCameras();
+        if (!cameras || cameras.length === 0) throw new Error('Nessuna fotocamera trovata');
+        const cameraId = cameras[cameras.length - 1].id;
+        await barcodeScanner.start(
+          cameraId,
+          { fps: 10, qrbox: { width: 280, height: 160 } },
+          onSuccess
+        );
+        if (status) status.textContent = 'Fotocamera attiva: inquadra il codice a barre.';
+      } catch(e3) {
+        if (status) {
+          status.textContent = 'Non riesco ad aprire la fotocamera. Controlla permessi, usa HTTPS/GitHub Pages e prova Safari su iPhone o Chrome su Android. Intanto puoi inserire il barcode manualmente qui sotto.';
+        }
+        await stopBarcodeScanner();
+      }
+    }
   }
 }
 
@@ -1103,6 +1156,12 @@ async function stopBarcodeScanner() {
 }
 
 async function fetchFoodByBarcode(barcode) {
+  barcode = String(barcode || '').trim();
+  if (!barcode) {
+    alert('Inserisci un barcode valido.');
+    return;
+  }
+
   try {
     const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
     const json = await res.json();
